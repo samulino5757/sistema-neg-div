@@ -1,0 +1,16 @@
+@model ClienteInput
+@{
+    ViewData["Title"] = "Novo cliente";
+}
+<a class="back" asp-action="Index">← Painel</a>
+<div class="page-heading"><div><h1>Novo cliente</h1><p>Use um nome fictício para testar o cadastro.</p></div></div>
+<section class="card narrow">
+    <form class="stack" asp-action="NovoCliente" method="post">
+        <div>
+            <label asp-for="Nome">Nome do cliente</label>
+            <input asp-for="Nome" required maxlength="100" autocomplete="off">
+            <span asp-validation-for="Nome"></span>
+        </div>
+        <div class="actions"><button class="btn" type="submit">Salvar cliente</button><a class="btn secondary" asp-action="Index">Cancelar</a></div>
+    </form>
+</section>

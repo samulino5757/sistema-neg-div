@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>@ViewData["Title"] · Negocia</title>
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true">
+</head>
+<body>
+    <a href="#conteudo" class="skip">Ir para o conteúdo</a>
+    <header class="top">
+        <nav class="wrap navigation" aria-label="Principal">
+            <a class="brand" asp-action="Index" asp-controller="Painel"><span class="symbol" aria-hidden="true">N</span> Negocia</a>
+            <a asp-action="Index" asp-controller="Painel">Painel</a>
+            <span class="demo">Modo demonstração</span>
+        </nav>
+    </header>
+    <main id="conteudo" class="wrap main">
+        @if (TempData["Confirmacao"] is string mensagem)
+        {
+            <p class="notice success" role="status">@mensagem</p>
+        }
+        @if (TempData["Erro"] is string erro)
+        {
+            <p class="notice error" role="alert">@erro</p>
+        }
+        @RenderBody()
+    </main>
+</body>
+</html>

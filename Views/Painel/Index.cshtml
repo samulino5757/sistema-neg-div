@@ -1,0 +1,82 @@
+@model PainelVm
+@{
+    ViewData["Title"] = "Painel de cobrança";
+}
+<div class="page-heading">
+    <div>
+        <p class="eyebrow">@Model.Hoje.ToString("dd 'de' MMMM 'de' yyyy")</p>
+        <h1>Painel de cobrança</h1>
+        <p>Consulte dívidas, negocie acordos e acompanhe os pagamentos.</p>
+    </div>
+    <div class="actions">
+        <a class="btn secondary" asp-action="NovoCliente">Novo cliente</a>
+        <a class="btn" asp-action="NovaDivida">+ Nova dívida</a>
+    </div>
+</div>
+<div class="summary">
+    <div class="metric"><span>Saldo a receber</span><strong>@Brasil.Dinheiro(Model.SaldoCentavos)</strong></div>
+    <div class="metric"><span>Dívidas cadastradas</span><strong>@Model.TotalDividas</strong></div>
+    <div class="metric"><span>Clientes cadastrados</span><strong>@Model.TotalClientes</strong></div>
+    <div class="metric warning"><span>Parcelas vencidas</span><strong>@Model.Vencidas.Count</strong></div>
+</div>
+<section class="card" aria-labelledby="carteira">
+    <div class="section-heading">
+        <div><h2 id="carteira">Carteira de dívidas</h2><p>Abra uma ficha para ver o histórico e negociar.</p></div>
+        <form method="get" asp-action="Index" class="search">
+            <label class="sr-only" for="busca">Cliente ou descrição</label>
+            <input id="busca" name="busca" type="search" maxlength="100" placeholder="Cliente ou descrição" value="@Model.Busca">
+            <button type="submit" class="btn secondary">Buscar</button>
+            @if (!string.IsNullOrEmpty(Model.Busca))
+            {
+                <a asp-action="Index" class="clear">Limpar</a>
+            }
+        </form>
+    </div>
+    @if (Model.Dividas.Count == 0)
+    {
+        <p class="empty">Nenhuma dívida encontrada.</p>
+    }
+    else
+    {
+        <div class="table-wrap">
+            <table>
+                <thead><tr><th>Cliente / dívida</th><th>Valor original</th><th>Vencimento</th><th>Situação</th><th><span class="sr-only">Ficha</span></th></tr></thead>
+                <tbody>
+                @foreach (var divida in Model.Dividas)
+                {
+                    var estado = Brasil.Estado(divida, Model.Hoje);
+                    <tr>
+                        <td><strong>@divida.Cliente.Nome</strong><small>@divida.Descricao</small></td>
+                        <td class="money">@Brasil.Dinheiro(divida.ValorCentavos)</td>
+                        <td>@divida.Vencimento.ToString("dd/MM/yyyy")</td>
+                        <td><span class="pill" data-state="@estado">@estado</span></td>
+                        <td><a asp-action="Ficha" asp-route-id="@divida.Id" aria-label="Abrir ficha de @divida.Cliente.Nome">Abrir ficha <span aria-hidden="true">→</span></a></td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>
+<section class="card" aria-labelledby="vencidas">
+    <div class="section-heading"><div><h2 id="vencidas">Parcelas vencidas</h2><p>Parcelas de acordos que aguardam pagamento.</p></div></div>
+    @if (Model.Vencidas.Count == 0)
+    {
+        <p class="empty">Nenhuma parcela vencida.</p>
+    }
+    else
+    {
+        <div class="table-wrap">
+            <table>
+                <thead><tr><th>Cliente</th><th>Parcela</th><th>Vencimento</th><th>Valor</th><th><span class="sr-only">Acordo</span></th></tr></thead>
+                <tbody>
+                @foreach (var parcela in Model.Vencidas)
+                {
+                    var divida = parcela.Acordo.Divida;
+                    <tr><td><strong>@divida.Cliente.Nome</strong></td><td>@parcela.Numero</td><td>@parcela.Vencimento.ToString("dd/MM/yyyy")</td><td class="money">@Brasil.Dinheiro(parcela.ValorCentavos)</td><td><a asp-action="Ficha" asp-route-id="@divida.Id" asp-fragment="parcelas">Ver acordo</a></td></tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>

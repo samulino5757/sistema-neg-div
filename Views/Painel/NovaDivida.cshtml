@@ -1,0 +1,47 @@
+@model NovaDividaVm
+@{
+    ViewData["Title"] = "Nova dívida";
+}
+<a class="back" asp-action="Index">← Painel</a>
+<div class="page-heading"><div><h1>Nova dívida</h1><p>Vincule a dívida a um cliente cadastrado.</p></div></div>
+<section class="card narrow">
+    @if (Model.Clientes.Count == 0)
+    {
+        <p>Cadastre um cliente para registrar a primeira dívida.</p>
+        <a class="btn" asp-action="NovoCliente">Cadastrar cliente</a>
+    }
+    else
+    {
+        <form class="stack" asp-action="NovaDivida" method="post">
+            <div>
+                <label asp-for="Form.ClienteId">Cliente</label>
+                <select asp-for="Form.ClienteId" required>
+                    <option value="">Selecione um cliente</option>
+                    @foreach (var cliente in Model.Clientes)
+                    {
+                        <option value="@cliente.Id">@cliente.Nome</option>
+                    }
+                </select>
+                <span asp-validation-for="Form.ClienteId"></span>
+            </div>
+            <div>
+                <label asp-for="Form.Descricao">Descrição</label>
+                <input asp-for="Form.Descricao" required maxlength="120" placeholder="Ex. Mensalidade em atraso">
+                <span asp-validation-for="Form.Descricao"></span>
+            </div>
+            <div class="fields two">
+                <div>
+                    <label asp-for="Form.Valor">Valor original (R$)</label>
+                    <input asp-for="Form.Valor" required maxlength="20" inputmode="decimal" placeholder="1000,00">
+                    <span asp-validation-for="Form.Valor"></span>
+                </div>
+                <div>
+                    <label asp-for="Form.Vencimento">Vencimento</label>
+                    <input asp-for="Form.Vencimento" asp-format="{0:yyyy-MM-dd}" type="date" required>
+                    <span asp-validation-for="Form.Vencimento"></span>
+                </div>
+            </div>
+            <div class="actions"><button class="btn" type="submit">Salvar dívida</button><a class="btn secondary" asp-action="Index">Cancelar</a></div>
+        </form>
+    }
+</section>

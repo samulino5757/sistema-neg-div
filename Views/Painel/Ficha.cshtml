@@ -1,0 +1,157 @@
+@model FichaVm
+@{
+    ViewData["Title"] = Model.Divida.Cliente.Nome;
+    var divida = Model.Divida;
+    var estado = Brasil.Estado(divida, Model.Hoje);
+}
+<a class="back" asp-action="Index">← Painel</a>
+<div class="page-heading">
+    <div><p class="eyebrow">Ficha da dívida</p><h1>@divida.Cliente.Nome</h1><p>@divida.Descricao</p></div>
+    <span class="pill" data-state="@estado">@estado</span>
+</div>
+<div class="summary detail">
+    <div class="metric"><span>Valor original</span><strong>@Brasil.Dinheiro(divida.ValorCentavos)</strong></div>
+    <div class="metric"><span>Vencimento original</span><strong>@divida.Vencimento.ToString("dd/MM/yyyy")</strong></div>
+    @if (divida.Acordo is { } acordo)
+    {
+        <div class="metric"><span>Saldo do acordo</span><strong>@Brasil.Dinheiro(acordo.Parcelas.Where(p => p.PagaEm == null).Sum(p => p.ValorCentavos))</strong></div>
+    }
+</div>
+<div class="detail-grid">
+    @if (divida.Acordo is null)
+    {
+        <section class="card" aria-labelledby="simulador">
+            <div class="section-heading"><div><h2 id="simulador">Simular acordo</h2><p>Parcelamento mensal de 1 a 12 vezes, sem juros.</p></div></div>
+            <form class="stack" asp-action="Proposta" asp-route-id="@divida.Id" asp-fragment="simulador" method="post">
+                <div class="fields two">
+                    <div>
+                        <label asp-for="Form.Quantidade">Parcelas</label>
+                        <input asp-for="Form.Quantidade" type="number" min="1" max="12" required>
+                        <span asp-validation-for="Form.Quantidade"></span>
+                    </div>
+                    <div>
+                        <label asp-for="Form.Desconto">Desconto (%) <span class="optional">Opcional</span></label>
+                        <input asp-for="Form.Desconto" maxlength="20" inputmode="decimal" placeholder="0">
+                        <span asp-validation-for="Form.Desconto"></span>
+                    </div>
+                </div>
+                <div>
+                    <label asp-for="Form.PrimeiroVencimento">Primeiro vencimento</label>
+                    <input asp-for="Form.PrimeiroVencimento" asp-format="{0:yyyy-MM-dd}" type="date" min="@Brasil.Iso(Model.Hoje)" required>
+                    <span asp-validation-for="Form.PrimeiroVencimento"></span>
+                </div>
+                <div><button class="btn" name="etapa" value="simular">Calcular proposta</button></div>
+            </form>
+            @if (Model.Proposta is { } proposta)
+            {
+                <div class="proposal">
+                    <div class="section-heading">
+                        <div><h3>Proposta simulada</h3><p>Desconto de @Brasil.Dinheiro(divida.ValorCentavos - proposta.TotalCentavos)</p></div>
+                        <strong class="money">@Brasil.Dinheiro(proposta.TotalCentavos)</strong>
+                    </div>
+                    <div class="table-wrap">
+                        <table>
+                            <thead><tr><th>Parcela</th><th>Vencimento</th><th>Valor</th></tr></thead>
+                            <tbody>
+                            @foreach (var p in proposta.Parcelas)
+                            {
+                                <tr><td>@p.Numero</td><td>@p.Vencimento.ToString("dd/MM/yyyy")</td><td class="money">@Brasil.Dinheiro(p.ValorCentavos)</td></tr>
+                            }
+                            </tbody>
+                        </table>
+                    </div>
+                    <form asp-action="Proposta" asp-route-id="@divida.Id" method="post" class="confirmation">
+                        <input type="hidden" name="Form.Quantidade" value="@Model.Form.Quantidade">
+                        <input type="hidden" name="Form.Desconto" value="@Model.Form.Desconto">
+                        <input type="hidden" name="Form.PrimeiroVencimento" value="@Brasil.Iso(Model.Form.PrimeiroVencimento)">
+                        <button class="btn" name="etapa" value="confirmar">Confirmar acordo</button>
+                    </form>
+                </div>
+            }
+        </section>
+    }
+    else
+    {
+        <section id="parcelas" class="card" aria-labelledby="acordo">
+            <div class="section-heading">
+                <div><h2 id="acordo">Parcelas do acordo</h2><p>Confirmado em @divida.Acordo.CriadoEm.ToString("dd/MM/yyyy") · Desconto de @((divida.Acordo.DescontoBase / 100m).ToString("0.##"))%</p></div>
+                <strong class="money">@Brasil.Dinheiro(divida.Acordo.Parcelas.Sum(p => p.ValorCentavos))</strong>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th>Parcela</th><th>Vencimento</th><th>Valor</th><th>Situação</th><th><span class="sr-only">Pagamento</span></th></tr></thead>
+                    <tbody>
+                    @foreach (var parcela in divida.Acordo.Parcelas.OrderBy(p => p.Numero))
+                    {
+                        var situacao = Brasil.Estado(parcela, Model.Hoje);
+                        <tr>
+                            <td>@parcela.Numero</td><td>@parcela.Vencimento.ToString("dd/MM/yyyy")</td><td class="money">@Brasil.Dinheiro(parcela.ValorCentavos)</td>
+                            <td><span class="pill" data-state="@situacao">@situacao</span></td>
+                            <td>
+                            @if (parcela.PagaEm is DateOnly paga)
+                            {
+                                <small>@paga.ToString("dd/MM/yyyy")</small>
+                            }
+                            else
+                            {
+                                <form asp-action="Pagar" asp-route-id="@divida.Id" method="post">
+                                    <input type="hidden" name="parcelaId" value="@parcela.Id">
+                                    <button class="btn small secondary" aria-label="Registrar pagamento da parcela @parcela.Numero">Dar baixa</button>
+                                </form>
+                            }
+                            </td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    }
+    <section class="card" id="contatos" aria-labelledby="historico">
+        <div class="section-heading"><div><h2 id="historico">Histórico de contatos</h2><p>Registre o resultado do atendimento.</p></div></div>
+        <form class="stack" asp-action="Contato" asp-route-id="@divida.Id" method="post">
+            <div class="fields two">
+                <div>
+                    <label for="Canal">Canal</label>
+                    <select name="Canal" id="Canal" required>
+                        <option value="">Selecione</option>
+                        @foreach (var canal in Enum.GetValues<Canal>())
+                        {
+                            <option value="@canal">@(canal == Canal.Email ? "E-mail" : canal.ToString())</option>
+                        }
+                    </select>
+                </div>
+                <div>
+                    <label for="Resultado">Resultado</label>
+                    <select name="Resultado" id="Resultado" required>
+                        <option value="">Selecione</option>
+                        @foreach (var resultado in Enum.GetValues<Resultado>())
+                        {
+                            <option value="@resultado">@Brasil.Rotulo(resultado)</option>
+                        }
+                    </select>
+                </div>
+            </div>
+            <div><label for="Nota">Observação <span class="optional">Opcional</span></label><textarea id="Nota" name="Nota" maxlength="400" rows="2"></textarea></div>
+            <div><button class="btn secondary">Registrar contato</button></div>
+        </form>
+        @if (divida.Contatos.Count == 0)
+        {
+            <p class="empty">Ainda não há contatos para esta dívida.</p>
+        }
+        else
+        {
+            <ul class="history">
+                @foreach (var contato in divida.Contatos.OrderByDescending(c => c.Data).ThenByDescending(c => c.Id))
+                {
+                    <li><strong>@Brasil.Rotulo(contato.Resultado)</strong><small>@contato.Data.ToString("dd/MM/yyyy") · @(contato.Canal == Canal.Email ? "E-mail" : contato.Canal.ToString())</small>
+                    @if (!string.IsNullOrWhiteSpace(contato.Nota))
+                    {
+                        <p>@contato.Nota</p>
+                    }
+                    </li>
+                }
+            </ul>
+        }
+    </section>
+</div>

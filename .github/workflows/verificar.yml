@@ -1,0 +1,44 @@
+name: Verificar e empacotar Negocia
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Gerar aplicativo portátil
+        shell: pwsh
+        run: |
+          $saida = Join-Path $env:RUNNER_TEMP 'negocia-windows'
+          dotnet publish Negocia.csproj -c Release -r win-x64 --self-contained true -o $saida
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Copy-Item scripts/Iniciar-Negocia.cmd $saida
+      - name: Testar aplicativo publicado com SQLite
+        shell: pwsh
+        run: |
+          $saida = Join-Path $env:RUNNER_TEMP 'negocia-windows'
+          $teste = Join-Path $env:RUNNER_TEMP 'negocia-teste'
+          Copy-Item -Recurse $saida $teste
+          $app = Start-Process -FilePath (Join-Path $teste 'Negocia.exe') -WorkingDirectory $teste -ArgumentList '--urls','http://localhost:5072' -WindowStyle Hidden -PassThru -RedirectStandardOutput "$env:RUNNER_TEMP\negocia.log" -RedirectStandardError "$env:RUNNER_TEMP\negocia-error.log"
+          try {
+            python scripts/smoke.py http://localhost:5072
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          } finally {
+            if (!$app.HasExited) { Stop-Process -Id $app.Id }
+            Get-Content "$env:RUNNER_TEMP\negocia.log","$env:RUNNER_TEMP\negocia-error.log" -Tail 40
+          }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Negocia-Windows-x64
+          path: ${{ runner.temp }}/negocia-windows
