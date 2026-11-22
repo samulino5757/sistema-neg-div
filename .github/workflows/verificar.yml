@@ -2,7 +2,7 @@ name: Verificar e empacotar Negocia
 
 on:
   push:
-    branches: [main, react]
+    branches: [main]
   workflow_dispatch:
 
 permissions:

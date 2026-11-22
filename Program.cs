@@ -31,9 +31,14 @@ app.UseExceptionHandler(handler => handler.Run(async context =>
     context.Response.StatusCode = StatusCodes.Status500InternalServerError;
     await context.Response.WriteAsync("O sistema encontrou um erro. Volte ao painel em / e tente novamente.");
 }));
-app.UseDefaultFiles();
 app.UseStaticFiles();
-app.MapGet("/", () => Results.Redirect("/Painel"));
+app.MapGet("/", (IWebHostEnvironment environment) =>
+{
+    var index = environment.WebRootFileProvider.GetFileInfo("index.html");
+    return index.PhysicalPath is { } path
+        ? Results.File(path, "text/html; charset=utf-8")
+        : Results.Redirect("/Painel");
+});
 app.MapControllerRoute("painel", "Painel/{action=Index}/{id?}", new { controller = "Painel" });
 
 await using (var scope = app.Services.CreateAsyncScope())
