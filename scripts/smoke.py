@@ -25,7 +25,7 @@ def main(base):
 
     for attempt in range(30):
         try:
-            dashboard = get("/")
+            dashboard = get("/Painel")
             break
         except HTTPError:
             raise
@@ -37,8 +37,8 @@ def main(base):
     assert "Painel de cobrança" in dashboard
     assert "Marina Costa (demo)" in dashboard
     assert "João Lima (demo)" in dashboard
-    assert "João Lima (demo)" in get("/?busca=joao")
-    assert "Marina Costa (demo)" not in get("/?busca=joao")
+    assert "João Lima (demo)" in get("/Painel?busca=joao")
+    assert "Marina Costa (demo)" not in get("/Painel?busca=joao")
     assert "Ver acordo" in dashboard
 
     _, debt_form = post("/Painel/NovoCliente", get("/Painel/NovoCliente"), Nome="Ana Demo")

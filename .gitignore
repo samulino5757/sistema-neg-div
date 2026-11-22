@@ -3,3 +3,8 @@ obj/
 .vs/
 App_Data/
 *.user
+frontend/node_modules/
+frontend/test-results/
+frontend/playwright-report/
+wwwroot/index.html
+wwwroot/react-assets/

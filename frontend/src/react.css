@@ -1,0 +1,11 @@
+.filters { display: flex; flex-wrap: wrap; gap: .7rem; }
+.filters label { margin: 0; min-width: 9rem; }
+.filters input, .filters select, .stack label > input, .stack label > select, .stack label > textarea { margin-top: .25rem; }
+.stack label { margin-bottom: 0; }
+fieldset { min-width: 0; margin: 0; padding: 0; border: 0; }
+.btn:disabled { opacity: .62; cursor: wait; }
+main:focus { outline: none; }
+@media (max-width: 420px) {
+    .filters { width: 100%; }
+    .filters label { flex: 1 1 100%; }
+}

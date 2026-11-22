@@ -1,6 +1,5 @@
 using System.Globalization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 
 namespace Negocia;
@@ -11,9 +10,7 @@ public class PainelController(NegociaDb db) : Controller
     public async Task<IActionResult> Index(string? busca)
     {
         var hoje = Brasil.Hoje;
-        var todas = await db.Dividas.AsNoTracking().Include(d => d.Cliente)
-            .Include(d => d.Acordo).ThenInclude(a => a!.Parcelas)
-            .OrderByDescending(d => d.Id).ToListAsync();
+        var todas = await Negociacao.Carteira(db);
 
         busca = busca?.Trim();
         var exibidas = todas;
@@ -77,7 +74,7 @@ public class PainelController(NegociaDb db) : Controller
     [HttpGet]
     public async Task<IActionResult> Ficha(int id)
     {
-        var divida = await BuscarDivida(id);
+        var divida = await Negociacao.BuscarDivida(db, id);
         var hoje = Brasil.Hoje;
         return divida is null ? NotFound() : View(new FichaVm(divida, hoje, new PropostaInput
         {
@@ -113,7 +110,7 @@ public class PainelController(NegociaDb db) : Controller
     [HttpPost]
     public async Task<IActionResult> Proposta(int id, [Bind(Prefix = "Form")] PropostaInput form, string etapa)
     {
-        var divida = await BuscarDivida(id);
+        var divida = await Negociacao.BuscarDivida(db, id);
         if (divida is null)
             return NotFound();
         if (divida.Acordo is not null)
@@ -123,42 +120,24 @@ public class PainelController(NegociaDb db) : Controller
         }
 
         var hoje = Brasil.Hoje;
-        if (form.PrimeiroVencimento < hoje || form.PrimeiroVencimento > hoje.AddYears(10))
-            ModelState.AddModelError("Form.PrimeiroVencimento", "Escolha uma data entre hoje e os próximos 10 anos.");
-        var desconto = 0m;
-        if (!string.IsNullOrWhiteSpace(form.Desconto) &&
-            (!Brasil.LerDecimal(form.Desconto, out desconto) || desconto > 99.99m))
-            ModelState.AddModelError("Form.Desconto", "Informe um desconto entre 0 e 99,99%.");
         if (!ModelState.IsValid)
             return View(nameof(Ficha), new FichaVm(divida, hoje, form));
 
-        var proposta = Negocia.Proposta.Calcular(divida.ValorCentavos, (int)(desconto * 100),
-            form.Quantidade, form.PrimeiroVencimento!.Value);
-        if (proposta.Parcelas.Count == 0)
+        var proposta = Negociacao.Simular(divida, form, hoje, out var erros);
+        if (proposta is null)
         {
-            ModelState.AddModelError("Form.Quantidade", "Cada parcela precisa ter pelo menos R$ 0,01. Reduza o desconto ou o número de parcelas.");
+            foreach (var (campo, erro) in erros)
+                ModelState.AddModelError($"Form.{campo}", erro);
             return View(nameof(Ficha), new FichaVm(divida, hoje, form));
         }
 
         if (etapa != "confirmar")
             return View(nameof(Ficha), new FichaVm(divida, hoje, form, proposta));
 
-        db.Acordos.Add(new Acordo
-        {
-            DividaId = divida.Id,
-            CriadoEm = hoje,
-            DescontoBase = proposta.DescontoBase,
-            Parcelas = proposta.Parcelas
-        });
-        try
-        {
-            await db.SaveChangesAsync();
+        if (await Negociacao.Confirmar(db, divida.Id, proposta, hoje))
             TempData["Confirmacao"] = "Acordo confirmado. As parcelas foram geradas.";
-        }
-        catch (DbUpdateException ex) when (ex.InnerException is SqliteException { SqliteExtendedErrorCode: 2067 })
-        {
+        else
             TempData["Erro"] = "Já existe um acordo para esta dívida.";
-        }
         return RedirectToAction(nameof(Ficha), "Painel", new { id }, "parcelas");
     }
 
@@ -171,8 +150,7 @@ public class PainelController(NegociaDb db) : Controller
             return NotFound();
 
         var hoje = Brasil.Hoje;
-        var atualizadas = await db.Parcelas.Where(p => p.Id == parcela.Id && p.PagaEm == null)
-            .ExecuteUpdateAsync(set => set.SetProperty(p => p.PagaEm, (DateOnly?)hoje));
+        var atualizadas = await Negociacao.DarBaixa(db, parcela.Id, hoje);
         TempData["Confirmacao"] = atualizadas > 0 ? "Pagamento registrado." : "Esta parcela já está paga.";
         return RedirectToAction(nameof(Ficha), "Painel", new { id }, "parcelas");
     }
@@ -180,8 +158,4 @@ public class PainelController(NegociaDb db) : Controller
     private async Task<NovaDividaVm> FormularioDivida(DividaInput form)
         => new(await db.Clientes.AsNoTracking().OrderBy(c => c.Nome).ToListAsync(), form);
 
-    private Task<Divida?> BuscarDivida(int id) => db.Dividas.AsNoTracking().AsSplitQuery()
-        .Include(d => d.Cliente).Include(d => d.Contatos)
-        .Include(d => d.Acordo).ThenInclude(a => a!.Parcelas)
-        .SingleOrDefaultAsync(d => d.Id == id);
 }

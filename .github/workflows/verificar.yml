@@ -2,7 +2,7 @@ name: Verificar e empacotar Negocia
 
 on:
   push:
-    branches: [main]
+    branches: [main, react]
   workflow_dispatch:
 
 permissions:
@@ -17,6 +17,15 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Compilar interface React
+        working-directory: frontend
+        run: |
+          npm install
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm run build
       - name: Gerar aplicativo portátil
         shell: pwsh
         run: |
@@ -33,6 +42,8 @@ jobs:
           $app = Start-Process -FilePath (Join-Path $teste 'Negocia.exe') -WorkingDirectory $teste -ArgumentList '--urls','http://localhost:5072' -WindowStyle Hidden -PassThru -RedirectStandardOutput "$env:RUNNER_TEMP\negocia.log" -RedirectStandardError "$env:RUNNER_TEMP\negocia-error.log"
           try {
             python scripts/smoke.py http://localhost:5072
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            npm --prefix frontend test
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           } finally {
             if (!$app.HasExited) { Stop-Process -Id $app.Id }

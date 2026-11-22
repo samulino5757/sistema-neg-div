@@ -1,18 +1,24 @@
 # Negocia
 
-Painel de demonstração para registrar dívidas, simular propostas e acompanhar acordos. Feito com C#, ASP.NET Core MVC, Razor, Entity Framework Core e SQLite.
+Painel de demonstração para registrar dívidas, simular propostas e acompanhar acordos. A interface usa React e Vite. A API usa C#, ASP.NET Core, Entity Framework Core e SQLite.
 
 ## Rodar no computador
 
-Com o [SDK do .NET 10](https://dotnet.microsoft.com/download/dotnet/10.0) instalado, abre o terminal e executa:
+No Windows x64, baixa **Negocia-Windows-x64** na seção **Artifacts** da última [execução bem-sucedida](https://github.com/samulino5757/sistema-neg-div/actions/workflows/verificar.yml). Extrai o ZIP inteiro, executa `Iniciar-Negocia.cmd` e abre [http://localhost:5072](http://localhost:5072).
+
+Para rodar a partir do código, instala o [SDK do .NET 10](https://dotnet.microsoft.com/download/dotnet/10.0) e o [Node.js 24](https://nodejs.org/). Depois executa:
 
 ```powershell
 git clone https://github.com/samulino5757/sistema-neg-div.git
 cd sistema-neg-div
+npm --prefix frontend install
+npm --prefix frontend run build
 dotnet run --urls http://localhost:5072
 ```
 
 Abre [http://localhost:5072](http://localhost:5072). O banco é criado em `App_Data/negocia.db` e os registros são preservados entre execuções.
+
+Para editar a interface com atualização automática, deixa o ASP.NET rodando na porta 5072, executa `npm --prefix frontend run dev` em outro terminal e abre [http://localhost:5173](http://localhost:5173). O Vite encaminha as chamadas de API para o ASP.NET. A interface Razor original também está disponível em [http://localhost:5072/Painel](http://localhost:5072/Painel).
 
 ## Testar o fluxo
 
